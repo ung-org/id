@@ -17,16 +17,13 @@
  *
  */
 
+#define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <pwd.h>
 #include <grp.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-
-const char *id_desc = "return user identity";
-const char *id_inv =
-    "id [user]\nid -G [-n] [user]\nid -g [-nr] user\nid -u [-nr] [user]";
 
 #define FULL	0
 #define NAMES	1
@@ -61,22 +58,29 @@ void id_printgids(char *user, int mode)
 	}
 
 	while (i < num_groups) {
-		if (i > 0)
+		if (i > 0) {
 			putchar(sep);
+		}
+
 		switch (mode) {
 		case NAMES:
 			printf("%s", gr[i].gr_name);
 			break;
+
 		case NUMS:
 			printf("%u", gr[i].gr_gid);
 			break;
+
 		default:
 			printf("%u(%s)", gr[i].gr_gid, gr[i].gr_name);
 			break;
+
 		}
+
 		free(gr[i].gr_name);
 		i++;
 	}
+
 	free(gr);
 }
 
@@ -88,7 +92,7 @@ int main(int argc, char **argv)
 	struct passwd pw;
 	struct group gr;
 
-	while ((c = getopt(argc, argv, ":Ggunr")) != -1) {
+	while ((c = getopt(argc, argv, "Ggunr")) != -1) {
 		switch (c) {
 		case 'G':
 		case 'g':
@@ -97,44 +101,54 @@ int main(int argc, char **argv)
 				return 1;
 			mode = c;
 			break;
+
 		case 'n':
 			n = 1;
 			break;
+
 		case 'r':
 			r = 1;
 			break;
+
 		default:
 			return 1;
 		}
 	}
 
-	if ((mode == 0 && (n == 1 || r == 1)) || (mode == 'G' && r == 1))
+	if ((mode == 0 && (n == 1 || r == 1)) || (mode == 'G' && r == 1)) {
 		return 1;
+	}
 
-	if (optind >= argc)
+	if (optind >= argc) {
 		pw = *getpwuid(mode == 'u' && r == 0 ? geteuid() : getuid());
-	else if (optind == argc - 1)
+	} else if (optind == argc - 1) {
 		pw = *getpwnam(argv[optind]);
-	else
+	} else {
 		return 1;
+	}
 
 	switch (mode) {
 	case 'G':
 		id_printgids(pw.pw_name, n ? NAMES : NUMS);
 		break;
+
 	case 'g':
 		gr = *getgrgid(r ? getgid() : getegid());
-		if (n)
+		if (n) {
 			printf("%s", gr.gr_name);
-		else
+		} else {
 			printf("%u", gr.gr_gid);
+		}
 		break;
+
 	case 'u':
-		if (n)
+		if (n) {
 			printf("%s", pw.pw_name);
-		else
+		} else {
 			printf("%u", pw.pw_uid);
+		}
 		break;
+
 	default:
 		gr = *getgrgid(pw.pw_uid == getuid()? getgid() : pw.pw_gid);
 		printf("uid=%u(%s) gid=%u(%s)", pw.pw_uid, pw.pw_name,
@@ -149,6 +163,7 @@ int main(int argc, char **argv)
 		}
 		id_printgids(pw.pw_name, FULL);
 	}
+
 	printf("\n");
 	return 0;
 }
