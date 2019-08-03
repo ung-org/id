@@ -158,14 +158,17 @@ int main(int argc, char **argv)
 		gr = *getgrgid(pw.pw_uid == getuid()? getgid() : pw.pw_gid);
 		printf("uid=%u(%s) gid=%u(%s)", pw.pw_uid, pw.pw_name,
 		       gr.gr_gid, gr.gr_name);
+
 		if (pw.pw_uid != geteuid()) {
 			pw = *getpwuid(geteuid());
 			printf(" euid=%u(%s)", pw.pw_uid, pw.pw_name);
 		}
+
 		if (gr.gr_gid != getegid()) {
 			gr = *getgrgid(getegid());
 			printf(" egid=%u(%s)", gr.gr_gid, gr.gr_name);
 		}
+
 		id_printgids(pw.pw_name, FULL);
 	}
 
