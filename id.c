@@ -38,22 +38,25 @@
 
 enum type { USER, GROUP };
 
-static void print_id(const char *prefix, enum type type, id_t id, int mode)
+static char *get_name(enum type type, id_t id)
 {
-	char *name = NULL;
-
 	if (type == GROUP) {
 		struct group *grp = getgrgid(id);
 		if (grp) {
-			name = grp->gr_name;
+			return grp->gr_name;
 		}
 	} else {
 		struct passwd *pwd = getpwuid(id);
 		if (pwd) {
-			name = pwd->pw_name;
+			return pwd->pw_name;
 		}
 	}
 
+	return NULL;
+}
+
+static void print_id(const char *prefix, const char *name, id_t id, int mode)
+{
 	printf("%s", prefix);
 	if (mode == NAMES) {
 		if (name) {
@@ -86,7 +89,7 @@ static void print_groups(uid_t uid, int mode)
 	while ((grp = getgrent()) != NULL) {
 		for (int i = 0; grp->gr_mem[i] != NULL; i++) {
 			if (!strcmp(pwd->pw_name, grp->gr_mem[i])) {
-				print_id(prefix, GROUP, grp->gr_gid, mode);
+				print_id(prefix, grp->gr_name, grp->gr_gid, mode);
 				prefix = ",";
 			}
 		}
@@ -150,23 +153,25 @@ int main(int argc, char *argv[])
 		break;
 
 	case 'g':
-		print_id("", GROUP, gid, names);
+		print_id("", get_name(GROUP, gid), gid, names);
 		break;
 
 	case 'u':
-		print_id("", USER, uid, names);
+		print_id("", get_name(USER, uid), uid, names);
 		break;
 
 	default:
-		print_id("uid=", USER, uid, 0);
-		print_id(" gid=", GROUP, gid, 0);
+		print_id("uid=", get_name(USER, uid), uid, 0);
+		print_id(" gid=", get_name(GROUP, gid), gid, 0);
 
 		if (optind >= argc && uid != geteuid()) {
-			print_id(" euid=", USER, geteuid(), 0);
+			uid_t euid = geteuid();
+			print_id(" euid=", get_name(USER, uid), euid, 0);
 		}
 
 		if (optind >= argc && gid != getegid()) {
-			print_id(" egid=", GROUP, getegid(), 0);
+			gid_t egid = getegid();
+			print_id(" egid=", get_name(GROUP, egid), egid, 0);
 		}
 
 		print_groups(uid, FULL);
