@@ -37,6 +37,7 @@
 #define NUMS	2
 
 enum type { USER, GROUP };
+enum mode { DEFAULT, UID, GID, ALL_GID };
 
 static char *get_name(enum type type, id_t id)
 {
@@ -107,7 +108,7 @@ static void print_groups(uid_t uid, int mode)
 int main(int argc, char *argv[])
 {
 	bool names = false;
-	char mode = 0;
+	enum mode mode = DEFAULT;
 	int c;
 	uid_t ruid = getuid();
 	uid_t euid = geteuid();
@@ -119,9 +120,15 @@ int main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "Ggunr")) != -1) {
 		switch (c) {
 		case 'G':
+			mode = ALL_GID;
+			break;
+
 		case 'g':
+			mode = GID;
+			break;
+
 		case 'u':
-			mode = c;
+			mode = UID;
 			break;
 
 		case 'n':
@@ -156,12 +163,12 @@ int main(int argc, char *argv[])
 		gid = rgid = egid = pwd->pw_gid;
 	}
 
-	if (mode == 'G') {
+	if (mode == ALL_GID) {
 		/* TODO: output real and/or effective gids if necessary */
 		print_groups(uid, names ? NAMES : NUMS);
-	} else if (mode == 'g') {
+	} else if (mode == GID) {
 		print_id("", get_name(GROUP, gid), gid, names);
-	} else if (mode == 'u') {
+	} else if (mode == UID) {
 		print_id("", get_name(USER, uid), uid, names);
 	} else {
 		print_id("uid=", get_name(USER, ruid), ruid, 0);
