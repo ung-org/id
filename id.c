@@ -69,7 +69,7 @@ static void print_id(const char *prefix, const char *name, id_t id, enum display
 	}
 }
 
-static void print_groups(uid_t uid, enum display mode)
+static void print_groups(uid_t uid, gid_t rgid, gid_t egid, enum display mode)
 {
 	struct passwd *pwd = getpwuid(uid);
 	if (pwd == NULL) {
@@ -82,16 +82,27 @@ static void print_groups(uid_t uid, enum display mode)
 		prefix = " groups=";
 	}
 
+	print_id(prefix, get_name(GROUP, rgid), rgid, mode);
+
+	if (mode == FULL) {
+		prefix = ",";
+	} else {
+		prefix = " ";
+	}
+	
+	if (rgid != egid) {
+		print_id(prefix, get_name(GROUP, egid), egid, mode);
+	}
+
 	setgrent();
 	while ((grp = getgrent()) != NULL) {
+		if (grp->gr_gid == rgid || grp->gr_gid == egid) {
+			continue;
+		}
+
 		for (int i = 0; grp->gr_mem[i] != NULL; i++) {
 			if (!strcmp(pwd->pw_name, grp->gr_mem[i])) {
 				print_id(prefix, grp->gr_name, grp->gr_gid, mode);
-				if (mode == FULL) {
-					prefix = ",";
-				} else {
-					prefix = " ";
-				}
 			}
 		}
 	}
@@ -159,8 +170,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (mode == ALL_GID) {
-		/* TODO: output real and/or effective gids if necessary */
-		print_groups(uid, dmode);
+		print_groups(uid, rgid, egid, dmode);
 	} else if (mode == GID) {
 		print_id("", get_name(GROUP, gid), gid, dmode);
 	} else if (mode == UID) {
@@ -177,7 +187,7 @@ int main(int argc, char *argv[])
 			print_id(" egid=", get_name(GROUP, egid), egid, 0);
 		}
 
-		print_groups(ruid, FULL);
+		print_groups(ruid, rgid, egid, FULL);
 	}
 
 	printf("\n");
