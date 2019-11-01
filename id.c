@@ -25,19 +25,15 @@
 #define _XOPEN_SOURCE 700
 #include <grp.h>
 #include <pwd.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#define FULL	0
-#define NAMES	1
-#define NUMS	2
-
 enum type { USER, GROUP };
 enum mode { DEFAULT, UID, GID, ALL_GID };
+enum display { FULL, NAMES, NUMBERS };
 
 static char *get_name(enum type type, id_t id)
 {
@@ -56,7 +52,7 @@ static char *get_name(enum type type, id_t id)
 	return NULL;
 }
 
-static void print_id(const char *prefix, const char *name, id_t id, int mode)
+static void print_id(const char *prefix, const char *name, id_t id, enum display mode)
 {
 	printf("%s", prefix);
 	if (mode == NAMES) {
@@ -65,7 +61,7 @@ static void print_id(const char *prefix, const char *name, id_t id, int mode)
 		} else {
 			printf("%ju", (uintmax_t)id);
 		}
-	} else if (mode == NUMS) {
+	} else if (mode == NUMBERS) {
 		printf("%ju", (uintmax_t)id);
 	} else {
 		if (name) {
@@ -76,7 +72,7 @@ static void print_id(const char *prefix, const char *name, id_t id, int mode)
 	}
 }
 
-static void print_groups(uid_t uid, int mode)
+static void print_groups(uid_t uid, enum display mode)
 {
 	struct passwd *pwd = getpwuid(uid);
 	if (pwd == NULL) {
@@ -107,7 +103,7 @@ static void print_groups(uid_t uid, int mode)
 
 int main(int argc, char *argv[])
 {
-	bool names = false;
+	enum display dmode = NUMBERS;
 	enum mode mode = DEFAULT;
 	int c;
 	uid_t ruid = getuid();
@@ -132,7 +128,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'n':
-			names = true;
+			dmode = NAMES;
 			break;
 
 		case 'r':
@@ -165,11 +161,11 @@ int main(int argc, char *argv[])
 
 	if (mode == ALL_GID) {
 		/* TODO: output real and/or effective gids if necessary */
-		print_groups(uid, names ? NAMES : NUMS);
+		print_groups(uid, dmode);
 	} else if (mode == GID) {
-		print_id("", get_name(GROUP, gid), gid, names);
+		print_id("", get_name(GROUP, gid), gid, dmode);
 	} else if (mode == UID) {
-		print_id("", get_name(USER, uid), uid, names);
+		print_id("", get_name(USER, uid), uid, dmode);
 	} else {
 		print_id("uid=", get_name(USER, ruid), ruid, 0);
 		print_id(" gid=", get_name(GROUP, rgid), rgid, 0);
