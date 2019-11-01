@@ -26,68 +26,43 @@
 #include <grp.h>
 #include <pwd.h>
 #include <stdbool.h>
-#include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #define FULL	0
 #define NAMES	1
 #define NUMS	2
 
-void id_printgids(char *user, int mode)
+static void print_id(const char *prefix, const char *name, id_t id, int mode)
 {
-	struct group *gr = NULL;
-	struct group *current = NULL;
-	int num_groups = 0;
-	char sep = ' ';
-	int i = 0;
+	printf("%s", prefix);
+	if (mode == NAMES) {
+		printf("%s", name);
+	} else if (mode == NUMS) {
+		printf("%ju", (uintmax_t)id);
+	} else {
+		printf("%ju(%s)", (uintmax_t)id, name);
+	}
+}
+
+static void id_printgids(char *user, int mode)
+{
+	struct group *grp = NULL;
+	char *prefix = " groups=";
 
 	setgrent();
-	while ((current = getgrent()) != NULL) {
-		for (i = 0; current->gr_mem[i] != NULL; i++) {
-			if (!strcmp(user, current->gr_mem[i])) {
-				num_groups++;
-				gr = realloc(gr,
-					     num_groups * sizeof(struct group));
-				gr[num_groups - 1].gr_gid = current->gr_gid;
-				gr[num_groups - 1].gr_name =
-				    strdup(current->gr_name);
+	while ((grp = getgrent()) != NULL) {
+		for (int i = 0; grp->gr_mem[i] != NULL; i++) {
+			if (!strcmp(user, grp->gr_mem[i])) {
+				print_id(prefix, grp->gr_name, grp->gr_gid, mode);
+				prefix = ",";
 			}
 		}
 	}
 	endgrent();
-
-	if (mode == FULL && num_groups > 0) {
-		printf(" groups=");
-		sep = ',';
-	}
-
-	while (i < num_groups) {
-		if (i > 0) {
-			putchar(sep);
-		}
-
-		switch (mode) {
-		case NAMES:
-			printf("%s", gr[i].gr_name);
-			break;
-
-		case NUMS:
-			printf("%u", gr[i].gr_gid);
-			break;
-
-		default:
-			printf("%u(%s)", gr[i].gr_gid, gr[i].gr_name);
-			break;
-
-		}
-
-		free(gr[i].gr_name);
-		i++;
-	}
-
-	free(gr);
 }
 
 int main(int argc, char *argv[])
@@ -147,33 +122,24 @@ int main(int argc, char *argv[])
 		break;
 
 	case 'g':
-		if (names) {
-			printf("%s", grp->gr_name);
-		} else {
-			printf("%u", grp->gr_gid);
-		}
+		print_id("", grp->gr_name, grp->gr_gid, names);
 		break;
 
 	case 'u':
-		if (names) {
-			printf("%s", pwd->pw_name);
-		} else {
-			printf("%u", pwd->pw_uid);
-		}
+		print_id("", pwd->pw_name, pwd->pw_uid, names);
 		break;
 
 	default:
-		printf("uid=%u(%s) gid=%u(%s)", pwd->pw_uid, pwd->pw_name,
-		       grp->gr_gid, grp->gr_name);
+		print_id("uid=", pwd->pw_name, pwd->pw_uid, 0);
 
-		if (pwd->pw_uid != geteuid()) {
+		if (optind >= argc && pwd->pw_uid != geteuid()) {
 			pwd = getpwuid(geteuid());
-			printf(" euid=%u(%s)", pwd->pw_uid, pwd->pw_name);
+			printf(" euid=%ju(%s)", (uintmax_t)pwd->pw_uid, pwd->pw_name);
 		}
 
-		if (grp->gr_gid != getegid()) {
+		if (optind >= argc && grp->gr_gid != getegid()) {
 			grp = getgrgid(getegid());
-			printf(" egid=%u(%s)", grp->gr_gid, grp->gr_name);
+			printf(" egid=%ju(%s)", (uintmax_t)grp->gr_gid, grp->gr_name);
 		}
 
 		id_printgids(pwd->pw_name, FULL);
