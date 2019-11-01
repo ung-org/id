@@ -22,13 +22,14 @@
  * SOFTWARE.
  */
 
-#define _XOPEN_SOURCE 500
-#include <stdio.h>
-#include <pwd.h>
+#define _XOPEN_SOURCE 700
 #include <grp.h>
+#include <pwd.h>
+#include <stdbool.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #define FULL	0
 #define NAMES	1
@@ -89,30 +90,29 @@ void id_printgids(char *user, int mode)
 	free(gr);
 }
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
-	int n = 0, r = 0;
+	bool names = false;
+	bool real_id = false;
 	char mode = 0;
 	int c;
-	struct passwd pw;
-	struct group gr;
+	struct passwd *pwd;
+	struct group *grp;
 
 	while ((c = getopt(argc, argv, "Ggunr")) != -1) {
 		switch (c) {
 		case 'G':
 		case 'g':
 		case 'u':
-			if (mode)
-				return 1;
 			mode = c;
 			break;
 
 		case 'n':
-			n = 1;
+			names = true;
 			break;
 
 		case 'r':
-			r = 1;
+			real_id = true;
 			break;
 
 		default:
@@ -120,56 +120,63 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if ((mode == 0 && (n == 1 || r == 1)) || (mode == 'G' && r == 1)) {
+	if ((mode == 0 && (names || real_id)) || (mode == 'G' && real_id)) {
+		return 1;
+	}
+
+	if (optind < argc - 1) {
+		fprintf(stderr, "id: too many operands\n");
 		return 1;
 	}
 
 	if (optind >= argc) {
-		pw = *getpwuid(mode == 'u' && r == 0 ? geteuid() : getuid());
-	} else if (optind == argc - 1) {
-		pw = *getpwnam(argv[optind]);
+		pwd = getpwuid(mode == 'u' && !real_id ? geteuid() : getuid());
+		grp = getgrgid(real_id ? getgid() : getegid());
 	} else {
-		return 1;
+		pwd = getpwnam(argv[optind]);
+		if (pwd == NULL) {
+			fprintf(stderr, "id: user '%s' not found\n", argv[optind]);
+			return 1;
+		}
+		grp = getgrgid(pwd->pw_gid);
 	}
 
 	switch (mode) {
 	case 'G':
-		id_printgids(pw.pw_name, n ? NAMES : NUMS);
+		id_printgids(pwd->pw_name, names ? NAMES : NUMS);
 		break;
 
 	case 'g':
-		gr = *getgrgid(r ? getgid() : getegid());
-		if (n) {
-			printf("%s", gr.gr_name);
+		if (names) {
+			printf("%s", grp->gr_name);
 		} else {
-			printf("%u", gr.gr_gid);
+			printf("%u", grp->gr_gid);
 		}
 		break;
 
 	case 'u':
-		if (n) {
-			printf("%s", pw.pw_name);
+		if (names) {
+			printf("%s", pwd->pw_name);
 		} else {
-			printf("%u", pw.pw_uid);
+			printf("%u", pwd->pw_uid);
 		}
 		break;
 
 	default:
-		gr = *getgrgid(pw.pw_uid == getuid()? getgid() : pw.pw_gid);
-		printf("uid=%u(%s) gid=%u(%s)", pw.pw_uid, pw.pw_name,
-		       gr.gr_gid, gr.gr_name);
+		printf("uid=%u(%s) gid=%u(%s)", pwd->pw_uid, pwd->pw_name,
+		       grp->gr_gid, grp->gr_name);
 
-		if (pw.pw_uid != geteuid()) {
-			pw = *getpwuid(geteuid());
-			printf(" euid=%u(%s)", pw.pw_uid, pw.pw_name);
+		if (pwd->pw_uid != geteuid()) {
+			pwd = getpwuid(geteuid());
+			printf(" euid=%u(%s)", pwd->pw_uid, pwd->pw_name);
 		}
 
-		if (gr.gr_gid != getegid()) {
-			gr = *getgrgid(getegid());
-			printf(" egid=%u(%s)", gr.gr_gid, gr.gr_name);
+		if (grp->gr_gid != getegid()) {
+			grp = getgrgid(getegid());
+			printf(" egid=%u(%s)", grp->gr_gid, grp->gr_name);
 		}
 
-		id_printgids(pw.pw_name, FULL);
+		id_printgids(pwd->pw_name, FULL);
 	}
 
 	printf("\n");
