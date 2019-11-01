@@ -83,14 +83,21 @@ static void print_groups(uid_t uid, int mode)
 	}
 
 	struct group *grp = NULL;
-	char *prefix = " groups=";
+	char *prefix = "";
+	if (mode == FULL) {
+		prefix = " groups=";
+	}
 
 	setgrent();
 	while ((grp = getgrent()) != NULL) {
 		for (int i = 0; grp->gr_mem[i] != NULL; i++) {
 			if (!strcmp(pwd->pw_name, grp->gr_mem[i])) {
 				print_id(prefix, grp->gr_name, grp->gr_gid, mode);
-				prefix = ",";
+				if (mode == FULL) {
+					prefix = ",";
+				} else {
+					prefix = " ";
+				}
 			}
 		}
 	}
@@ -102,8 +109,12 @@ int main(int argc, char *argv[])
 	bool names = false;
 	char mode = 0;
 	int c;
-	uid_t uid = geteuid();
-	gid_t gid = getegid();
+	uid_t ruid = getuid();
+	uid_t euid = geteuid();
+	gid_t rgid = getgid();
+	gid_t egid = getegid();
+	uid_t uid = euid;
+	gid_t gid = egid;
 
 	while ((c = getopt(argc, argv, "Ggunr")) != -1) {
 		switch (c) {
@@ -118,8 +129,8 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'r':
-			uid = getuid();
-			gid = getgid();
+			uid = ruid;
+			gid = rgid;
 			break;
 
 		default:
@@ -127,9 +138,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if ((mode == 0 && (names)) || (mode == 'G')) {
-		return 1;
-	}
+	/* TODO: validate arguments together */
 
 	if (optind < argc - 1) {
 		fprintf(stderr, "id: too many operands\n");
@@ -147,30 +156,22 @@ int main(int argc, char *argv[])
 		gid = pwd->pw_gid;
 	}
 
-	switch (mode) {
-	case 'G':
+	if (mode == 'G') {
+		/* TODO: output real and/or effective gids if necessary */
 		print_groups(uid, names ? NAMES : NUMS);
-		break;
-
-	case 'g':
+	} else if (mode == 'g') {
 		print_id("", get_name(GROUP, gid), gid, names);
-		break;
-
-	case 'u':
+	} else if (mode == 'u') {
 		print_id("", get_name(USER, uid), uid, names);
-		break;
-
-	default:
+	} else {
 		print_id("uid=", get_name(USER, uid), uid, 0);
 		print_id(" gid=", get_name(GROUP, gid), gid, 0);
 
-		if (optind >= argc && uid != geteuid()) {
-			uid_t euid = geteuid();
+		if (optind >= argc && uid != euid) {
 			print_id(" euid=", get_name(USER, uid), euid, 0);
 		}
 
-		if (optind >= argc && gid != getegid()) {
-			gid_t egid = getegid();
+		if (optind >= argc && gid != egid) {
 			print_id(" egid=", get_name(GROUP, egid), egid, 0);
 		}
 
