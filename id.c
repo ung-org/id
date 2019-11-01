@@ -71,12 +71,11 @@ static void print_id(const char *prefix, const char *name, id_t id, enum display
 
 static void print_groups(uid_t uid, gid_t rgid, gid_t egid, enum display mode)
 {
-	struct passwd *pwd = getpwuid(uid);
-	if (pwd == NULL) {
+	char *name = get_name(USER, uid);
+	if (name == NULL) {
 		return;
 	}
 
-	struct group *grp = NULL;
 	char *prefix = "";
 	if (mode == FULL) {
 		prefix = " groups=";
@@ -94,6 +93,7 @@ static void print_groups(uid_t uid, gid_t rgid, gid_t egid, enum display mode)
 		print_id(prefix, get_name(GROUP, egid), egid, mode);
 	}
 
+	struct group *grp = NULL;
 	setgrent();
 	while ((grp = getgrent()) != NULL) {
 		if (grp->gr_gid == rgid || grp->gr_gid == egid) {
@@ -101,7 +101,7 @@ static void print_groups(uid_t uid, gid_t rgid, gid_t egid, enum display mode)
 		}
 
 		for (int i = 0; grp->gr_mem[i] != NULL; i++) {
-			if (!strcmp(pwd->pw_name, grp->gr_mem[i])) {
+			if (!strcmp(name, grp->gr_mem[i])) {
 				print_id(prefix, grp->gr_name, grp->gr_gid, mode);
 			}
 		}
