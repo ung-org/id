@@ -152,8 +152,8 @@ int main(int argc, char *argv[])
 				argv[optind]);
 			return 1;
 		}
-		uid = pwd->pw_uid;
-		gid = pwd->pw_gid;
+		uid = ruid = euid = pwd->pw_uid;
+		gid = rgid = egid = pwd->pw_gid;
 	}
 
 	if (mode == 'G') {
@@ -164,18 +164,18 @@ int main(int argc, char *argv[])
 	} else if (mode == 'u') {
 		print_id("", get_name(USER, uid), uid, names);
 	} else {
-		print_id("uid=", get_name(USER, uid), uid, 0);
-		print_id(" gid=", get_name(GROUP, gid), gid, 0);
+		print_id("uid=", get_name(USER, ruid), ruid, 0);
+		print_id(" gid=", get_name(GROUP, rgid), rgid, 0);
 
-		if (optind >= argc && uid != euid) {
-			print_id(" euid=", get_name(USER, uid), euid, 0);
+		if (ruid != euid) {
+			print_id(" euid=", get_name(USER, euid), euid, 0);
 		}
 
-		if (optind >= argc && gid != egid) {
+		if (rgid != egid) {
 			print_id(" egid=", get_name(GROUP, egid), egid, 0);
 		}
 
-		print_groups(uid, FULL);
+		print_groups(ruid, FULL);
 	}
 
 	printf("\n");
