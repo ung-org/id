@@ -53,9 +53,8 @@ static char *get_name(enum type type, id_t id)
 	return NULL;
 }
 
-static void print_id(const char *prefix, const char *name, id_t id, enum display mode)
+static void print_id(const char *name, id_t id, enum display mode)
 {
-	printf("%s", prefix);
 	if (mode == FULL || mode == NUMBERS || name == NULL) {
 		printf("%ju", (uintmax_t)id);
 	}
@@ -71,26 +70,22 @@ static void print_id(const char *prefix, const char *name, id_t id, enum display
 
 static void print_groups(uid_t uid, gid_t rgid, gid_t egid, enum display mode)
 {
+	if (mode == FULL) {
+		printf(" groups=");
+	}
+
+	print_id(get_name(GROUP, rgid), rgid, mode);
+
+	char separator = (mode == FULL ? ',' : ' ');
+	
+	if (rgid != egid) {
+		putchar(separator);
+		print_id(get_name(GROUP, egid), egid, mode);
+	}
+
 	char *name = get_name(USER, uid);
 	if (name == NULL) {
 		return;
-	}
-
-	char *prefix = "";
-	if (mode == FULL) {
-		prefix = " groups=";
-	}
-
-	print_id(prefix, get_name(GROUP, rgid), rgid, mode);
-
-	if (mode == FULL) {
-		prefix = ",";
-	} else {
-		prefix = " ";
-	}
-	
-	if (rgid != egid) {
-		print_id(prefix, get_name(GROUP, egid), egid, mode);
 	}
 
 	struct group *grp = NULL;
@@ -102,7 +97,8 @@ static void print_groups(uid_t uid, gid_t rgid, gid_t egid, enum display mode)
 
 		for (int i = 0; grp->gr_mem[i] != NULL; i++) {
 			if (!strcmp(name, grp->gr_mem[i])) {
-				print_id(prefix, grp->gr_name, grp->gr_gid, mode);
+				putchar(separator);
+				print_id(grp->gr_name, grp->gr_gid, mode);
 			}
 		}
 	}
@@ -172,24 +168,29 @@ int main(int argc, char *argv[])
 	if (mode == ALL_GID) {
 		print_groups(uid, rgid, egid, dmode);
 	} else if (mode == GID) {
-		print_id("", get_name(GROUP, gid), gid, dmode);
+		print_id(get_name(GROUP, gid), gid, dmode);
 	} else if (mode == UID) {
-		print_id("", get_name(USER, uid), uid, dmode);
+		print_id(get_name(USER, uid), uid, dmode);
 	} else {
-		print_id("uid=", get_name(USER, ruid), ruid, 0);
-		print_id(" gid=", get_name(GROUP, rgid), rgid, 0);
+		printf("uid=");
+		print_id(get_name(USER, ruid), ruid, 0);
+
+		printf(" gid=");
+		print_id(get_name(GROUP, rgid), rgid, 0);
 
 		if (ruid != euid) {
-			print_id(" euid=", get_name(USER, euid), euid, 0);
+			printf(" euid=");
+			print_id(get_name(USER, euid), euid, 0);
 		}
 
 		if (rgid != egid) {
-			print_id(" egid=", get_name(GROUP, egid), egid, 0);
+			printf(" egid=");
+			print_id(get_name(GROUP, egid), egid, 0);
 		}
 
 		print_groups(ruid, rgid, egid, FULL);
 	}
 
-	printf("\n");
+	putchar('\n');
 	return 0;
 }
