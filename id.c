@@ -55,19 +55,15 @@ static char *get_name(enum type type, id_t id)
 static void print_id(const char *prefix, const char *name, id_t id, enum display mode)
 {
 	printf("%s", prefix);
-	if (mode == NAMES) {
-		if (name) {
-			printf("%s", name);
-		} else {
-			printf("%ju", (uintmax_t)id);
-		}
-	} else if (mode == NUMBERS) {
+	if (mode == FULL || mode == NUMBERS || name == NULL) {
 		printf("%ju", (uintmax_t)id);
-	} else {
-		if (name) {
-			printf("%ju(%s)", (uintmax_t)id, name);
-		} else {
-			printf("%ju", (uintmax_t)id);
+	}
+
+	if (name != NULL) {
+		if (mode == FULL) {
+			printf("(%s)", name);
+		} else if (mode == NAMES) {
+			printf("%s", name);
 		}
 	}
 }
