@@ -110,7 +110,8 @@ int main(int argc, char *argv[])
 	} else {
 		pwd = getpwnam(argv[optind]);
 		if (pwd == NULL) {
-			fprintf(stderr, "id: user '%s' not found\n", argv[optind]);
+			fprintf(stderr, "id: user '%s' not found\n",
+				argv[optind]);
 			return 1;
 		}
 		grp = getgrgid(pwd->pw_gid);
@@ -134,12 +135,12 @@ int main(int argc, char *argv[])
 
 		if (optind >= argc && pwd->pw_uid != geteuid()) {
 			pwd = getpwuid(geteuid());
-			printf(" euid=%ju(%s)", (uintmax_t)pwd->pw_uid, pwd->pw_name);
+			print_id(" euid=", pwd->pw_name, pwd->pw_uid, 0);
 		}
 
 		if (optind >= argc && grp->gr_gid != getegid()) {
 			grp = getgrgid(getegid());
-			printf(" egid=%ju(%s)", (uintmax_t)grp->gr_gid, grp->gr_name);
+			print_id(" egid=", grp->gr_name, grp->gr_gid, 0);
 		}
 
 		id_printgids(pwd->pw_name, FULL);
