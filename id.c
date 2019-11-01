@@ -105,7 +105,6 @@ int main(int argc, char *argv[])
 {
 	enum display dmode = NUMBERS;
 	enum mode mode = DEFAULT;
-	int c;
 	uid_t ruid = getuid();
 	uid_t euid = geteuid();
 	gid_t rgid = getgid();
@@ -113,6 +112,7 @@ int main(int argc, char *argv[])
 	uid_t uid = euid;
 	gid_t gid = egid;
 
+	int c;
 	while ((c = getopt(argc, argv, "Ggunr")) != -1) {
 		switch (c) {
 		case 'G':
