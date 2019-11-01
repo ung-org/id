@@ -25,6 +25,7 @@
 #define _XOPEN_SOURCE 700
 #include <grp.h>
 #include <pwd.h>
+#include <locale.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -107,6 +108,8 @@ int main(int argc, char *argv[])
 	gid_t egid = getegid();
 	uid_t uid = euid;
 	gid_t gid = egid;
+
+	setlocale(LC_ALL, "");
 
 	int c;
 	while ((c = getopt(argc, argv, "Ggunr")) != -1) {
