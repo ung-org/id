@@ -72,7 +72,7 @@ static void print_id(const char *prefix, enum type type, id_t id, int mode)
 	}
 }
 
-static void id_printgids(uid_t uid, int mode)
+static void print_groups(uid_t uid, int mode)
 {
 	struct passwd *pwd = getpwuid(uid);
 	if (pwd == NULL) {
@@ -133,9 +133,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (optind >= argc) {
-		/* TODO: handle -u */
-	} else {
+	if (optind == argc - 1) {
 		struct passwd *pwd = getpwnam(argv[optind]);
 		if (pwd == NULL) {
 			fprintf(stderr, "id: user '%s' not found\n",
@@ -148,7 +146,7 @@ int main(int argc, char *argv[])
 
 	switch (mode) {
 	case 'G':
-		id_printgids(uid, names ? NAMES : NUMS);
+		print_groups(uid, names ? NAMES : NUMS);
 		break;
 
 	case 'g':
@@ -171,7 +169,7 @@ int main(int argc, char *argv[])
 			print_id(" egid=", GROUP, getegid(), 0);
 		}
 
-		id_printgids(uid, FULL);
+		print_groups(uid, FULL);
 	}
 
 	printf("\n");
