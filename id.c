@@ -36,28 +36,57 @@
 #define NAMES	1
 #define NUMS	2
 
-static void print_id(const char *prefix, const char *name, id_t id, int mode)
+enum type { USER, GROUP };
+
+static void print_id(const char *prefix, enum type type, id_t id, int mode)
 {
+	char *name = NULL;
+
+	if (type == GROUP) {
+		struct group *grp = getgrgid(id);
+		if (grp) {
+			name = grp->gr_name;
+		}
+	} else {
+		struct passwd *pwd = getpwuid(id);
+		if (pwd) {
+			name = pwd->pw_name;
+		}
+	}
+
 	printf("%s", prefix);
 	if (mode == NAMES) {
-		printf("%s", name);
+		if (name) {
+			printf("%s", name);
+		} else {
+			printf("%ju", (uintmax_t)id);
+		}
 	} else if (mode == NUMS) {
 		printf("%ju", (uintmax_t)id);
 	} else {
-		printf("%ju(%s)", (uintmax_t)id, name);
+		if (name) {
+			printf("%ju(%s)", (uintmax_t)id, name);
+		} else {
+			printf("%ju", (uintmax_t)id);
+		}
 	}
 }
 
-static void id_printgids(char *user, int mode)
+static void id_printgids(uid_t uid, int mode)
 {
+	struct passwd *pwd = getpwuid(uid);
+	if (pwd == NULL) {
+		return;
+	}
+
 	struct group *grp = NULL;
 	char *prefix = " groups=";
 
 	setgrent();
 	while ((grp = getgrent()) != NULL) {
 		for (int i = 0; grp->gr_mem[i] != NULL; i++) {
-			if (!strcmp(user, grp->gr_mem[i])) {
-				print_id(prefix, grp->gr_name, grp->gr_gid, mode);
+			if (!strcmp(pwd->pw_name, grp->gr_mem[i])) {
+				print_id(prefix, GROUP, grp->gr_gid, mode);
 				prefix = ",";
 			}
 		}
@@ -68,11 +97,10 @@ static void id_printgids(char *user, int mode)
 int main(int argc, char *argv[])
 {
 	bool names = false;
-	bool real_id = false;
 	char mode = 0;
 	int c;
-	struct passwd *pwd;
-	struct group *grp;
+	uid_t uid = geteuid();
+	gid_t gid = getegid();
 
 	while ((c = getopt(argc, argv, "Ggunr")) != -1) {
 		switch (c) {
@@ -87,7 +115,8 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'r':
-			real_id = true;
+			uid = getuid();
+			gid = getgid();
 			break;
 
 		default:
@@ -95,7 +124,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if ((mode == 0 && (names || real_id)) || (mode == 'G' && real_id)) {
+	if ((mode == 0 && (names)) || (mode == 'G')) {
 		return 1;
 	}
 
@@ -105,45 +134,44 @@ int main(int argc, char *argv[])
 	}
 
 	if (optind >= argc) {
-		pwd = getpwuid(mode == 'u' && !real_id ? geteuid() : getuid());
-		grp = getgrgid(real_id ? getgid() : getegid());
+		/* TODO: handle -u */
 	} else {
-		pwd = getpwnam(argv[optind]);
+		struct passwd *pwd = getpwnam(argv[optind]);
 		if (pwd == NULL) {
 			fprintf(stderr, "id: user '%s' not found\n",
 				argv[optind]);
 			return 1;
 		}
-		grp = getgrgid(pwd->pw_gid);
+		uid = pwd->pw_uid;
+		gid = pwd->pw_gid;
 	}
 
 	switch (mode) {
 	case 'G':
-		id_printgids(pwd->pw_name, names ? NAMES : NUMS);
+		id_printgids(uid, names ? NAMES : NUMS);
 		break;
 
 	case 'g':
-		print_id("", grp->gr_name, grp->gr_gid, names);
+		print_id("", GROUP, gid, names);
 		break;
 
 	case 'u':
-		print_id("", pwd->pw_name, pwd->pw_uid, names);
+		print_id("", USER, uid, names);
 		break;
 
 	default:
-		print_id("uid=", pwd->pw_name, pwd->pw_uid, 0);
+		print_id("uid=", USER, uid, 0);
+		print_id(" gid=", GROUP, gid, 0);
 
-		if (optind >= argc && pwd->pw_uid != geteuid()) {
-			pwd = getpwuid(geteuid());
-			print_id(" euid=", pwd->pw_name, pwd->pw_uid, 0);
+		if (optind >= argc && uid != geteuid()) {
+			print_id(" euid=", USER, geteuid(), 0);
 		}
 
-		if (optind >= argc && grp->gr_gid != getegid()) {
-			grp = getgrgid(getegid());
-			print_id(" egid=", grp->gr_name, grp->gr_gid, 0);
+		if (optind >= argc && gid != getegid()) {
+			print_id(" egid=", GROUP, getegid(), 0);
 		}
 
-		id_printgids(pwd->pw_name, FULL);
+		id_printgids(uid, FULL);
 	}
 
 	printf("\n");
